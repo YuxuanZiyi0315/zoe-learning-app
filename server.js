@@ -18,8 +18,11 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.static(FRONTEND_DIR));
 
-const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://english_learning_app_user:0kl539TpVfzG2tGpZnQ097xCzgYAFdlN@dpg-d8l6icbeo5us73b588pg-a.singapore-postgres.render.com/english_learning_app';
-const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const DATABASE_URL = process.env.DATABASE_URL;
+const INTERNAL_DB_URL = 'postgresql://english_learning_app_user:0kl539TpVfzG2tGpZnQ097xCzgYAFdlN@dpg-d8l6icbeo5us73b588pg-a/english_learning_app';
+const EXTERNAL_DB_URL = 'postgresql://english_learning_app_user:0kl539TpVfzG2tGpZnQ097xCzgYAFdlN@dpg-d8l6icbeo5us73b588pg-a.singapore-postgres.render.com/english_learning_app';
+const finalDBUrl = DATABASE_URL || (process.env.RENDER_SERVICE_ID ? INTERNAL_DB_URL : EXTERNAL_DB_URL);
+const pool = new Pool({ connectionString: finalDBUrl, ssl: { rejectUnauthorized: false } });
 
 async function q(text, params) {
   const client = await pool.connect();
