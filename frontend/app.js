@@ -145,6 +145,7 @@ function doLogout() {
     state.answers = {};
     document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
     document.getElementById('login-page').classList.add('active');
+    switchLoginTab('student');
 }
 
 // ============ 教师端 - 班级 ============
@@ -570,6 +571,13 @@ function handleSwipe() {
     }
 }
 
+function autoResizeAndSave(el, qIdx) {
+    el.style.height = '';
+    el.style.height = el.scrollHeight + 'px';
+    state.answers[qIdx] = el.value;
+    saveDraft();
+}
+
 function renderQuestion() {
     var q = state.questions[state.currentQuestion];
     if (!q) return;
@@ -605,7 +613,7 @@ function renderQuestion() {
         html += '</div>';
     } else {
         var val = state.answers[state.currentQuestion] || '';
-        html += '<textarea class="answer-input" placeholder="请输入你的答案..." oninput="this.style.height='';this.style.height=this.scrollHeight+'px';state.answers[' + state.currentQuestion + ']=this.value;saveDraft()">' + val + '</textarea>';
+        html += '<textarea class="answer-input" placeholder="请输入你的答案..." oninput="autoResizeAndSave(this, ' + state.currentQuestion + ')">' + val + '</textarea>';
     }
 
     container.innerHTML = html;
