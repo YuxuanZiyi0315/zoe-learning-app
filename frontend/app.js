@@ -659,7 +659,7 @@ async function viewAssignmentDetail(assignmentId) {
     document.getElementById('assignment-detail-title').textContent = title;
 
     var clsName = state.currentClass ? state.currentClass.name : '';
-    var bread = '<div class="breadcrumb"><a onclick="loadClasses();showTeacherSection('classes')">班级</a><span class="sep">/</span><a onclick="viewClassDetail(' + (state.currentClass ? state.currentClass.id : 0) + ')">' + clsName + '</a><span class="sep">/</span><span class="current">' + title + '</span></div>';
+    var bread = '<div class="breadcrumb"><a onclick="loadClasses();showTeacherSection(\"classes\")">班级</a><span class="sep">/</span><a onclick="viewClassDetail(' + (state.currentClass ? state.currentClass.id : 0) + ')">' + clsName + '</a><span class="sep">/</span><span class="current">' + title + '</span></div>';
 
     var container = document.getElementById('assignment-detail-content');
     container.innerHTML = bread;
@@ -694,7 +694,7 @@ async function viewStudentSubmission(assignmentId, studentId) {
     var container = document.getElementById('student-submission-content');
     var clsName = state.currentClass ? state.currentClass.name : '';
     var title = document.getElementById('assignment-detail-title').textContent || '作业';
-    var bread2 = '<div class="breadcrumb"><a onclick="loadClasses();showTeacherSection('classes')">班级</a><span class="sep">/</span><a onclick="viewClassDetail(' + (state.currentClass ? state.currentClass.id : 0) + ')">' + clsName + '</a><span class="sep">/</span><a onclick="viewAssignmentDetail(' + assignmentId + ')">' + title + '</a><span class="sep">/</span><span class="current">学生详情</span></div>';
+    var bread2 = '<div class="breadcrumb"><a onclick="loadClasses();showTeacherSection(\"classes\")">班级</a><span class="sep">/</span><a onclick="viewClassDetail(' + (state.currentClass ? state.currentClass.id : 0) + ')">' + clsName + '</a><span class="sep">/</span><a onclick="viewAssignmentDetail(' + assignmentId + ')">' + title + '</a><span class="sep">/</span><span class="current">学生详情</span></div>';
     container.innerHTML = bread2;
 
     var feedback = res.data.feedback;
