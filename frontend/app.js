@@ -97,8 +97,11 @@ async function teacherLogin() {
     var res = await api('/teacher/login', { method: 'POST', body: JSON.stringify({ code: code }) });
     if (res.code === 0) {
         state.currentRole = 'teacher';
-        state.currentUser = res.data;
+      state.currentUser = res.data;
         document.getElementById('login-page').classList.remove('active');
+        document.getElementById('student-page').classList.remove('active');
+        document.querySelectorAll('#student-page .section').forEach(function(s) { s.classList.remove('active'); });
+        document.querySelectorAll('#teacher-page .section').forEach(function(s) { s.classList.remove('active'); });
         document.getElementById('teacher-page').classList.add('active');
         loadClasses();
         showToast('登录成功');
@@ -114,8 +117,11 @@ async function studentLogin() {
     var res = await api('/student/login', { method: 'POST', body: JSON.stringify({ name: name, class_code: classCode }) });
     if (res.code === 0) {
         state.currentRole = 'student';
-        state.currentUser = res.data;
+      state.currentUser = Object.assign(res.data.student || res.data, {class_name: (res.data.class || {}).name || ''});
         document.getElementById('login-page').classList.remove('active');
+        document.getElementById('teacher-page').classList.remove('active');
+        document.querySelectorAll('#teacher-page .section').forEach(function(s) { s.classList.remove('active'); });
+        document.querySelectorAll('#student-page .section').forEach(function(s) { s.classList.remove('active'); });
         document.getElementById('student-page').classList.add('active');
         loadStudentAssignments();
         showToast('登录成功');
@@ -513,7 +519,7 @@ function renderPreview() {
                 '<span style="background:#e6f7ff;color:#1890FF;padding:2px 10px;border-radius:4px;font-size:12px;">' + getTypeName(q.type) + '</span>' +
             '</div>' +
             '<div class="preview-item-content">' +
-                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + q.content + '</p>' + answers +
+                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + (q.content || q.question || '') + '</p>' + answers +
                 '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #d9d9d9;color:#52c41a;font-size:14px;"><strong>参考答案：</strong>' + q.answer + '</div>' +
             '</div></div>';
     }).join('');
@@ -929,7 +935,7 @@ async function viewStudentSubmission(assignmentId, studentId) {
                     '</span>' +
                 '</div>' +
                 '<div class="feedback-content">' +
-                    '<p><strong>题目：</strong>' + (q.content || '') + '</p>' +
+                    '<p><strong>题目：</strong>' + (q.content || q.question || '') + '</p>' +
                     (q.answer ? '<p><strong>正确答案：</strong>' + q.answer + '</p>' : '') +
                     '<p><strong>学生答案：</strong>' + studentAns + '</p>' +
                     '<p style="margin-top:8px;padding-top:8px;border-top:1px dashed #ddd;">' + (fq.feedback || '') + '</p>' +
