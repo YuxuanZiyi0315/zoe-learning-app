@@ -10,7 +10,7 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = parseInt(process.env.PORT || "18890", 10);
 const FRONTEND_DIR = process.env.FRONTEND_DIR || path.join(__dirname, 'frontend');
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-cjnwxwbzk29ssnr1wlsiuy0v1ipn4bbabexrct1kwl8m054g';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-8f3a3e4af5ff46c587d218ec2f7de847';
 const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
 
 app.use(cors());
