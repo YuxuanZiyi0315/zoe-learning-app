@@ -372,15 +372,15 @@ async function generatePreview() {
 
 
 
+
+
 async function testAIConnection() {
-    var apiKey = document.getElementById("ai-api-key-input").value.trim();
-    if (!apiKey) { document.getElementById("ai-test-result").innerHTML = '<span style="color:#666;">使用默认 Key，无需测试</span>'; return; }
     var resultEl = document.getElementById("ai-test-result");
     var btn = document.getElementById("test-api-btn");
     btn.disabled = true;
     btn.textContent = "连接中...";
     resultEl.innerHTML = '<span style="color:#666;">正在测试...</span>';
-    var res = await api("/ai/test-connection", { method: "POST", body: JSON.stringify({ api_key: apiKey }) });
+    var res = await api("/ai/test-connection", { method: "POST", body: JSON.stringify({}) });
     btn.disabled = false;
     btn.textContent = "测试连接";
     if (res.code === 0 && res.data && res.data.ok) {
@@ -391,8 +391,6 @@ async function testAIConnection() {
 }
 
 async function doGeneratePreview(body, btn) {
-    var savedKey = document.getElementById('ai-api-key-input').value.trim();
-    if (savedKey) body.ai_api_key = savedKey;
     var res = await api('/assignments/generate', { method: 'POST', body: JSON.stringify(body) });
     hideLoading();
     btn.disabled = false;
@@ -533,9 +531,8 @@ async function confirmCreateAssignment() {
     showModal('确认发布', msg, async function() {
         closeModal();
         showLoading('保存中...');
-        var aiKey = document.getElementById('ai-api-key-input').value.trim();
         var res = await api('/assignments', { method: 'POST', body: JSON.stringify({
-            class_id: classId, title: title, questions: state.generatedQuestions, ai_api_key: aiKey
+            class_id: classId, title: title, questions: state.generatedQuestions
         })});
         hideLoading();
         if (res.code === 0) {

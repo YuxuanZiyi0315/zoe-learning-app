@@ -339,12 +339,11 @@ app.get("/api/student/assignments", async (req, res) => {
 
 app.post("/api/ai/test-connection", async (req, res) => {
   try {
-    const { api_key } = req.body;
-    if (!api_key) return res.json({ code: 1001, message: "\u7f3a\u5c11 API Key" });
+    const api_key = DEEPSEEK_API_KEY;
     const fetch = (await import("node-fetch")).default;
     const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + api_key },
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + DEEPSEEK_API_KEY },
       body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "user", content: "Say hello" }], max_tokens: 5 })
     });
     if (response.ok) {
