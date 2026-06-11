@@ -101,7 +101,7 @@ function parseJSON(str) { try { return JSON.parse(str || "{}"); } catch(e) { ret
 app.post("/api/teacher/login", async (req, res) => {
   try {
     const code = req.body.code;
-    if (!code) return res.status(400).json({ code: 1001, message: "请输入教师编�? });
+    if (!code) return res.status(400).json({ code: 1001, message: "请输入教师编号" });
     const r = await q("SELECT * FROM teachers WHERE code = $1", [code]);
     if (r.rows.length === 0) return res.json({ code: 1002, message: "教师编号错误" });
     res.json({ code: 0, data: r.rows[0] });
@@ -113,7 +113,7 @@ app.post("/api/student/login", async (req, res) => {
     const { class_code, name } = req.body;
     if (!class_code || !name) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const cls = await q("SELECT * FROM classes WHERE code = $1", [class_code]);
-    if (cls.rows.length === 0) return res.json({ code: 1002, message: "班级编号不存�? });
+    if (cls.rows.length === 0) return res.json({ code: 1002, message: "班级编号不存在" });
     const cl = cls.rows[0];
     let student = await q("SELECT * FROM students WHERE name = $1 AND class_id = $2", [name, cl.id]);
     if (student.rows.length === 0) {
@@ -147,7 +147,7 @@ app.delete("/api/classes/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const cls = await q("SELECT * FROM classes WHERE id = $1", [id]);
-    if (cls.rows.length === 0) return res.status(404).json({ code: 1003, message: "班级不存�? });
+    if (cls.rows.length === 0) return res.status(404).json({ code: 1003, message: "班级不存在" });
     await q("DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE class_id = $1)", [id]);
     await q("DELETE FROM assignments WHERE class_id = $1", [id]);
     await q("DELETE FROM students WHERE class_id = $1", [id]);
@@ -180,7 +180,7 @@ app.get("/api/assignments/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const r = await q("SELECT * FROM assignments WHERE id = $1", [id]);
-    if (r.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存�? });
+    if (r.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存在" });
     const a = r.rows[0];
     a.questions = parseJSON(a.questions);
     res.json({ code: 0, data: a });
@@ -203,10 +203,10 @@ app.post("/api/assignments/generate", async (req, res) => {
     const { prompt, num_questions, content } = req.body;
     const count = Math.min(Math.max(parseInt(num_questions) || 5, 1), 20);
     const courseContent = content || "";
-    const sysP = "你是一位英语教师，请根据以下要求生成英语练习题。题目必须以下格式的JSON数组输出，不要包含其他内容：[{\"question\": \"...\", \"type\": \"choice|fill|translation\", \"options\": [\"A. ...\", \"B. ...\", \"C. ...\", \"D. ...\"], \"answer\": \"...\"}] 如果是fill类型，不需要options字段。如果是translation，也不需要options。每道题目的answer字段必须包含正确答案。请确保输出为有效的JSON数组�?;
-    let userC = "请生�? + count + "道英语练习题，包括选择题、填空题和翻译题�?;
-    if (courseContent) userC += "课程内容�? + courseContent;
-    if (prompt) userC += "特别要求�? + prompt;
+    const sysP = "你是一位英语教师，请根据以下要求生成英语练习题。题目必须以下格式的JSON数组输出，不要包含其他内容：[{\"question\": \"...\", \"type\": \"choice|fill|translation\", \"options\": [\"A. ...\", \"B. ...\", \"C. ...\", \"D. ...\"], \"answer\": \"...\"}] 如果是fill类型，不需要options字段。如果是translation，也不需要options。每道题目的answer字段必须包含正确答案。请确保输出为有效的JSON数组。";
+    let userC = "请生成" + count + "道英语练习题，包括选择题、填空题和翻译题。";
+    if (courseContent) userC += "课程内容：" + courseContent;
+    if (prompt) userC += "特别要求：" + prompt;
     const result = await callMimoApi(sysP, userC);
     if (result.error) return res.json({ code: 0, data: { questions: [], rawContent: result.error, count: 0 } });
     let questions = [];
@@ -246,13 +246,13 @@ app.post("/api/assignments/:id/grade-auto", async (req, res) => {
     const { student_id, answers } = req.body;
     if (!student_id || !answers) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const asgnR = await q("SELECT * FROM assignments WHERE id = $1", [aid]);
-    if (asgnR.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存�? });
+    if (asgnR.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存在" });
     const asgn = asgnR.rows[0];
     const questions = parseJSON(asgn.questions);
     const sp = "你是一位英语教师，请对学生的答案进行批改。以下格式返回JSON，不要包含其他内容：{\"score\": 85, \"questions\": [{\"idx\": 0, \"correct\": true, \"feedback\": \"...\", \"correctAnswer\": \"...\"}], \"comment\": \"总体评价\"}";
-    const uc = "原题�? + JSON.stringify(questions) + "\n学生答案�? + JSON.stringify(answers);
+    const uc = "原题：" + JSON.stringify(questions) + "\n学生答案：" + JSON.stringify(answers);
     const result = await callMimoApi(sp, uc);
-    if (result.error) return res.json({ code: 0, data: { score: 0, questions: [], comment: "批改失败�? + result.error } });
+    if (result.error) return res.json({ code: 0, data: { score: 0, questions: [], comment: "批改失败：" + result.error } });
     let fb = { score: 0, questions: [], comment: "" };
     try {
       let raw = result.content;
@@ -260,7 +260,7 @@ app.post("/api/assignments/:id/grade-auto", async (req, res) => {
       if (jsonMatch) raw = jsonMatch[0];
       fb = JSON.parse(raw);
     } catch (e) {
-      fb = { score: 0, questions: [], comment: "解析失败�? + result.content };
+      fb = { score: 0, questions: [], comment: "解析失败：" + result.content };
     }
     const ex = await q("SELECT id FROM submissions WHERE assignment_id = $1 AND student_id = $2", [aid, student_id]);
     if (ex.rows.length > 0) {
@@ -304,7 +304,7 @@ app.post("/api/assignments/:id/grade", async (req, res) => {
     if (ex.rows.length > 0) {
       await q("UPDATE submissions SET score = $1, feedback = $2, status = 'graded' WHERE id = $3", [score, JSON.stringify(fb), ex.rows[0].id]);
     } else {
-      return res.status(404).json({ code: 1003, message: "提交记录不存�? });
+      return res.status(404).json({ code: 1003, message: "提交记录不存在" });
     }
     res.json({ code: 0, data: fb });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
@@ -333,7 +333,7 @@ app.use((req, res) => {
 
 initDb().then(() => {
   console.log("=".repeat(50));
-  console.log("ZOE学习智能�?- 服务启动");
+  console.log("ZOE学习智能体 - 服务启动");
   console.log("=".repeat(50));
   console.log("PostgreSQL: OK");
   console.log("API Key: OK");
