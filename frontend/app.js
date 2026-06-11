@@ -34,6 +34,12 @@ function closeModal() {
     document.getElementById('modal').classList.remove('active');
 }
 
+
+function resetPreview() {
+    state.generatedQuestions = null;
+    document.getElementById('preview-area').style.display = 'none';
+}
+
 function showModal(title, message, onConfirm) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-message').innerHTML = message;
@@ -219,6 +225,29 @@ async function viewClassDetail(classId) {
                 '</div></div>';
         }).join('');
     }
+
+
+    // 学生列表
+    html += '<div style="margin-top:20px;border-top:1px solid #eee;padding-top:16px;">';
+    html += '<h4 style="margin-bottom:12px;color:#333;">👨‍🎓 班级学生（' + students.length + '人）</h4>';
+    if (students.length > 0) {
+        html += '<div class="list-container">';
+        html += students.map(function(s) {
+            return '<div class="list-item">' +
+                '<div class="list-item-title">' + s.name + '</div>' +
+                (s.created_at ? '<div class="list-item-desc">加入时间：' + s.created_at + '</div>' : '') +
+            '</div>';
+        }).join('');
+        html += '</div>';
+    } else {
+        html += '<div style="text-align:center;padding:20px;color:#999;"><div style="font-size:36px;margin-bottom:8px;">👨‍🎓</div><div>还没有学生加入，请分享班级编号给学生</div></div>';
+    }
+    html += '</div>';
+
+    // 删除班级
+    html += '<div style="margin-top:24px;text-align:center;">';
+    html += '<button class="btn btn-danger btn-small" onclick="confirmDeleteClass(' + cls.id + ')" style="font-size:13px;padding:6px 16px;">删除班级</button>';
+    html += '</div>';
 
     content.innerHTML = html;
 
@@ -409,6 +438,23 @@ async function loadStudentAssignments() {
     if (res.code === 0) {
         renderStudentAssignments(res.data);
     }
+}
+
+
+function confirmDeleteClass(classId) {
+    var cls = state.classes.find(function(c) { return c.id === classId; });
+    if (!cls) return;
+    showModal('确认删除', '确定要删除班级 "' + cls.name + '" 吗？<br>删除后该班级的所有学生和作业数据将一并清除，此操作不可恢复。', async function() {
+        var res = await api('/classes/' + classId, { method: 'DELETE' });
+        closeModal();
+        if (res.code === 0) {
+            showToast('删除成功');
+            showTeacherSection('classes');
+            loadClasses();
+        } else {
+            showToast(res.message || '删除失败');
+        }
+    });
 }
 
 function renderStudentAssignments(assignments) {

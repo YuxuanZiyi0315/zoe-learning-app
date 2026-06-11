@@ -27,3 +27,9 @@ venv/
 node_modules/
 npm-cache/
 
+
+# Screenshots
+*.png
+*.jpg
+*.jpeg
+ux_*

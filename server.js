@@ -264,6 +264,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: '服务运行正常' });
 });
 
+
+// DELETE /api/classes/:id - 删除班级（级联删除学生、作业、提交）
+app.delete('/api/classes/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const d = getDb();
+  const cls = d.prepare('SELECT * FROM classes WHERE id = ?').get(id);
+  if (!cls) return res.status(404).json({ code: 1003, message: '班级不存在' });
+  d.prepare('DELETE FROM students WHERE class_id = ?').run(id);
+  const asgns = d.prepare('SELECT id FROM assignments WHERE class_id = ?').all(id);
+  for (const a of asgns) { d.prepare('DELETE FROM submissions WHERE assignment_id = ?').run(a.id); }
+  d.prepare('DELETE FROM assignments WHERE class_id = ?').run(id);
+  d.prepare('DELETE FROM classes WHERE id = ?').run(id);
+  res.json({ code: 0, message: '删除成功' });
+});
+
 app.use((req, res) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
     res.sendFile(path.join(FRONTEND_DIR, 'index.html'));

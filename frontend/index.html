@@ -126,6 +126,11 @@
                             <span style="background:#e6f7ff;color:#1890FF;padding:2px 10px;border-radius:10px;font-size:12px;">共 <span id="preview-count">0</span> 题</span>
                         </div>
                         <div id="preview-questions" style="max-height: 400px; overflow-y: auto;"></div>
+                        <div style="margin-top:16px;display:flex;gap:8px;">
+                            <button class="btn btn-primary" onclick="confirmCreateAssignment()" style="flex:1;">确认创建作业</button>
+                            <button class="btn btn-secondary" onclick="resetPreview()" style="flex:1;">重新生成</button>
+                        </div>
+
                     </div>                </section>
                             <!-- 班级详情（含作业列表） -->
                 <section id="class-detail-section" class="section">
