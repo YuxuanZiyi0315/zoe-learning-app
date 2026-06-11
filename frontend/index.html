@@ -131,8 +131,25 @@
                             <button class="btn btn-secondary" onclick="resetPreview()" style="flex:1;">重新生成</button>
                         </div>
 
-                    </div>                </section>
-                            <!-- 班级详情（含作业列表） -->
+                    </div>
+
+                    <!-- 分隔线和手动出题入口 -->
+                    <div style="text-align:center;margin:16px 0;color:#999;font-size:13px;">—— 或 ——</div>
+                    <button class="btn btn-secondary btn-block" onclick="toggleManualInput()" style="margin-bottom:12px;">✏️ 手动输入题目</button>
+
+                    <!-- 手动出题区域 -->
+                    <div id="manual-input-area" class="card" style="display:none;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                            <span style="font-weight:600;color:#333;font-size:15px;">手动出题</span>
+                            <button class="btn btn-small btn-primary" onclick="addManualQuestion()" style="padding:4px 12px;font-size:12px;">+ 添加题目</button>
+                        </div>
+                        <div id="manual-questions-list"></div>
+                        <div style="margin-top:12px;display:flex;gap:8px;">
+                            <button class="btn btn-primary" onclick="useManualQuestions()" style="flex:1;">使用这些题目</button>
+                            <button class="btn btn-secondary" onclick="toggleManualInput()" style="flex:1;">取消</button>
+                        </div>
+                    </div>
+                </section>
                 <section id="class-detail-section" class="section">
                     <div class="section-header">
                         <h2 class="section-title" id="class-detail-title">班级详情</h2>

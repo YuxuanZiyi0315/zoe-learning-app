@@ -152,14 +152,33 @@ app.post('/api/assignments/generate', async (req, res) => {
   const actualCount = count || num_questions || 5;
   if (!actualContent && !teacher_prompt) return res.status(400).json({ code: 1001, message: '请输入课堂内容或教师提示词' });
   const tn = { choice: "选择题", fill: "填空题", translation: "翻译题", mixed: "混合题型" };
-  const sp = "你是名小学英语出题专家，请根据要求生成英语题目。请仅返回JSON数组，不要添加任何其他内容。每道题包含：id(序号), type(choice/fill/translation), question(题目内容), options(选择题的选项，可选), answer(正确答案), explanation(解释说明)";
+  const sp = "你是名小学英语出题专家，请根据要求生成英语题目。请仅返回一个JSON数组，不要添加任何其他内容，不要用markdown包裹。每道题包含：id(序号), type(choice/fill/translation), content(题目内容), options(选择题的选项数组，必填), answer(正确答案), explanation(解释说明)。如果是选择题，options必须是字符串数组如[\"A.xxx\",\"B.xxx\",\"C.xxx\",\"D.xxx\"]。如果是填空题选项为空数组[]。";
   const uc = "请生成" + actualCount + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + actualContent + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
   const result = await callMimoApi(sp, uc);
   if (result.error) return res.status(500).json({ code: 2001, message: '生成失败：' + result.error });
   try {
-    const m = result.content.match(/\[.*\]/s);
-    const questions = m ? JSON.parse(m[0]) : [];
-    res.json({ code: 0, data: { questions, count: questions.length } });
+    let jsonStr = result.content;
+    jsonStr = jsonStr.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+    const m = jsonStr.match(/\[[\s\S]*\]/);
+    let questions = [];
+    if (m) {
+      try {
+        questions = JSON.parse(m[0]);
+      } catch (e2) {
+        const cleaned = m[0].replace(/'/g, '"');
+        try { questions = JSON.parse(cleaned); } catch (e3) { questions = []; }
+      }
+    }
+    if (Array.isArray(questions)) {
+      questions = questions.map(function(q) {
+        if (q.question && !q.content) { q.content = q.question; delete q.question; }
+        if (q.options && typeof q.options === 'string') {
+          q.options = q.options.split(',').map(function(s) { return s.trim(); });
+        }
+        return q;
+      });
+    }
+    res.json({ code: 0, data: { questions: questions, count: questions.length } });
   } catch (e) {
     res.json({ code: 0, data: { questions: [], rawContent: result.content, count: 0 } });
   }
@@ -192,7 +211,7 @@ app.post('/api/assignments/:id/submit', async (req, res) => {
   try { questions = JSON.parse(a.questions); } catch(e) { questions = []; }
   let qa = '';
   for (const q of questions) {
-    qa += "题目：" + q.question + "\n正确答案：" + q.answer + "\n学生答案：" + (answers[q.id] || "(未作答)") + "\n\n";
+    qa += "题目：" + (q.content || q.question) + "\n正确答案：" + q.answer + "\n学生答案：" + (answers[q.id] || "(未作答)") + "\n\n";
   }
   const sp = "你是名温暖的英语老师，批改作业时永远保持鼓励的态度。即使学生答错也要肯定他们的努力，用温和的方式引导他们找到正确答案。请直接返回JSON对象，不要添加任何其他内容。";
   const uc = "请批改以下作业，保持鼓励的语气。\n\n题目和正确答案：\n" + qa + "\n请批改每道题，并给出：\n1. 每道题的对错\n2. 对答对的题给予肯定\n3. 对答错的题温和指出正确答案\n4. 总体评论要积极正面\n\n返回JSON格式：{\"score\": 分数, \"questions\": [{\"id\": 0, \"correct\": true/false, \"feedback\": \"评语\"}], \"comment\": \"总体评论\"}";

@@ -969,4 +969,32 @@ textarea.input-field {
     to { opacity: 1; transform: translateY(0); }
 }
 
+
+/* ====== 手动出题 ====== */
+.manual-question-item {
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    background: #fafafa;
+    position: relative;
+    transition: box-shadow 0.2s;
+}
+.manual-question-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.btn-danger {
+    background: #ff4d4f !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 6px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: opacity 0.2s;
+}
+.btn-danger:hover {
+    opacity: 0.85;
+}
+
 }

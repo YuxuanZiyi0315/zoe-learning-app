@@ -214,7 +214,7 @@ async function viewClassDetail(classId) {
 
     document.getElementById('class-detail-title').textContent = cls.name;
 
-    var content = document.getElementById('class-detail-content');
+    var content = document.getElementById('class-detail-info');
     var html = '<div style="margin-bottom:16px;padding:16px;background:#f9f9f9;border-radius:8px;">' +
         '<p style="color:#666;margin-bottom:4px;">班级编号：<strong>' + cls.code + '</strong></p>' +
         '<p style="color:#666;">学生人数：' + students.length + ' 人</p>' +
@@ -381,6 +381,98 @@ async function doGeneratePreview(body, btn) {
     } else {
         showToast(res.message || '生成失败，可能是网络波动，再试一次？');
     }
+}
+
+// ============ 手动出题 ============
+var manualQuestionIdCounter = 0;
+
+function toggleManualInput() {
+    var area = document.getElementById('manual-input-area');
+    if (area.style.display === 'none') {
+        area.style.display = '';
+        if (document.getElementById('manual-questions-list').children.length === 0) {
+            addManualQuestion();
+        }
+    } else {
+        area.style.display = 'none';
+    }
+}
+
+function addManualQuestion() {
+    manualQuestionIdCounter++;
+    var id = manualQuestionIdCounter;
+    var list = document.getElementById('manual-questions-list');
+    var div = document.createElement('div');
+    div.className = 'manual-question-item';
+    div.id = 'mq-' + id;
+    div.style.cssText = 'border:1px solid #e8e8e8;border-radius:12px;padding:16px;margin-bottom:12px;background:#fafafa;position:relative;';
+    div.innerHTML = 
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
+            '<span style="font-weight:600;color:#333;">第 ' + id + ' 题</span>' +
+            '<button class="btn btn-small btn-danger" onclick="removeManualQuestion(' + id + ')" style="background:#ff4d4f;color:white;border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-size:12px;">删除</button>' +
+        '</div>' +
+        '<div class="input-group" style="margin-bottom:8px;">' +
+            '<select id="mq-type-' + id + '" class="input-field" onchange="toggleManualOptions(' + id + ')">' +
+                '<option value="choice">选择题</option>' +
+                '<option value="fill">填空题</option>' +
+                '<option value="translation">翻译题</option>' +
+            '</select>' +
+        '</div>' +
+        '<div class="input-group" style="margin-bottom:8px;">' +
+            '<textarea id="mq-question-' + id + '" class="input-field" placeholder="请输入题目内容..." style="min-height:60px;"></textarea>' +
+        '</div>' +
+        '<div id="mq-options-area-' + id + '" class="input-group" style="margin-bottom:8px;">' +
+            '<label class="input-label" style="font-size:13px;color:#666;">选项（每行一个）</label>' +
+            '<textarea id="mq-options-' + id + '" class="input-field" placeholder="选项A\n选项B\n选项C\n选项D" style="min-height:80px;"></textarea>' +
+        '</div>' +
+        '<div class="input-group">' +
+            '<label class="input-label" style="font-size:13px;color:#666;">参考答案</label>' +
+            '<input type="text" id="mq-answer-' + id + '" class="input-field" placeholder="请输入正确答案...">' +
+        '</div>';
+    list.appendChild(div);
+    // Scroll to the new item
+    div.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function removeManualQuestion(id) {
+    var el = document.getElementById('mq-' + id);
+    if (el) el.remove();
+}
+
+function toggleManualOptions(id) {
+    var type = document.getElementById('mq-type-' + id).value;
+    var optionsArea = document.getElementById('mq-options-area-' + id);
+    optionsArea.style.display = type === 'choice' ? '' : 'none';
+}
+
+function collectManualQuestions() {
+    var questions = [];
+    var items = document.querySelectorAll('#manual-questions-list .manual-question-item');
+    items.forEach(function(item) {
+        var id = item.id.replace('mq-', '');
+        var type = document.getElementById('mq-type-' + id).value;
+        var question = document.getElementById('mq-question-' + id).value.trim();
+        var answer = document.getElementById('mq-answer-' + id).value.trim();
+        if (!question || !answer) return;
+        var q = { id: questions.length + 1, type: type, question: question, answer: answer };
+        if (type === 'choice') {
+            var optsText = document.getElementById('mq-options-' + id).value.trim();
+            q.options = optsText ? optsText.split('\n').filter(function(o) { return o.trim(); }) : [];
+        }
+        questions.push(q);
+    });
+    return questions;
+}
+
+function useManualQuestions() {
+    var title = document.getElementById('assignment-title-input').value.trim();
+    if (!title) { showToast('请填写作业标题'); return; }
+    var questions = collectManualQuestions();
+    if (questions.length === 0) { showToast('请至少填写一道完整的题目（题目内容+答案）'); return; }
+    state.generatedQuestions = questions;
+    renderPreview();
+    document.getElementById('manual-input-area').style.display = 'none';
+    showToast('已加载 ' + questions.length + ' 道手动出题');
 }
 
 function renderPreview() {
@@ -598,7 +690,7 @@ function renderQuestion() {
           html += '<div class="progress-dot ' + dotClass + '"></div>';
       }
       html += '</div>' +
-        '<div class="question-text">' + q.content + '</div>';
+        '<div class="question-text">' + (q.content || q.question) + '</div>';
 
     if (q.type === 'choice') {
         html += '<div class="options-list">';
@@ -644,9 +736,17 @@ function showSubmitConfirm() {
 
 async function submitAssignment() {
     showLoading('AI批改中，请稍候...');
+    // 将 answers key 从数组索引(0,1,2)映射为题目的 q.id
+    var mappedAnswers = {};
+    for (var i = 0; i < state.questions.length; i++) {
+        var qId = state.questions[i].id;
+        if (state.answers[i] !== undefined) {
+            mappedAnswers[qId] = state.answers[i];
+        }
+    }
     var res = await api('/assignments/' + state.currentAssignment.id + '/submit', {
         method: 'POST', body: JSON.stringify({
-            student_id: state.currentUser.id, answers: state.answers
+            student_id: state.currentUser.id, answers: mappedAnswers
         })
     });
     hideLoading();
@@ -655,6 +755,10 @@ async function submitAssignment() {
         showStudentSection('feedback');
         showToast('提交成功！');
         clearDraft(state.currentAssignment.id);
+        if (state.currentAssignment) {
+            state.currentAssignment.submit_status = 'graded';
+            state.currentAssignment.score = res.data.score;
+        }
     } else {
         showToast(res.message || '提交失败，请重试');
     }
