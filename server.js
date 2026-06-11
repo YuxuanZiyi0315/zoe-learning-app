@@ -12,7 +12,7 @@ const app = express();
 const PORT = parseInt(process.env.PORT || '18890', 10);
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.db');
 const FRONTEND_DIR = process.env.FRONTEND_DIR || path.join(__dirname, 'frontend');
-const MIMO_API_KEY = process.env.MIMO_API_KEY || '';
+const MIMO_API_KEY = 'sk-cjnwxwbzk29ssnr1wlsiuy0v1ipn4bbabexrct1kwl8m054g';
 const MIMO_API_URL = process.env.MIMO_API_URL || 'https://api.xiaomimimo.com/v1/chat/completions';
 
 app.use(cors());
@@ -147,11 +147,13 @@ app.get('/api/assignments/:id', (req, res) => {
 });
 
 app.post('/api/assignments/generate', async (req, res) => {
-  const { prompt, question_type, count, grade, teacher_prompt } = req.body;
-  if (!prompt) return res.status(400).json({ code: 1001, message: '请输入题目提示' });
+  const { prompt, content, num_questions, question_type, count, grade, teacher_prompt } = req.body;
+  const actualPrompt = prompt || content || '';
+  const actualCount = count || num_questions || 5;
+  if (!actualPrompt) return res.status(400).json({ code: 1001, message: '请输入题目提示或课堂内容' });
   const tn = { choice: "选择题", fill: "填空题", translation: "翻译题", mixed: "混合题型" };
   const sp = "你是名小学英语出题专家，请根据要求生成英语题目。请仅返回JSON数组，不要添加任何其他内容。每道题包含：id(序号), type(choice/fill/translation), question(题目内容), options(选择题的选项，可选), answer(正确答案), explanation(解释说明)";
-  const uc = "请生成" + (count || 5) + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + prompt + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
+  const uc = "请生成" + actualCount + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + actualPrompt + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
   const result = await callMimoApi(sp, uc);
   if (result.error) return res.status(500).json({ code: 2001, message: '生成失败：' + result.error });
   try {
@@ -279,6 +281,19 @@ app.delete('/api/classes/:id', (req, res) => {
   res.json({ code: 0, message: '删除成功' });
 });
 
+
+
+// DELETE /api/assignments/:id
+app.delete('/api/assignments/:id', (req, res) => {
+  const id = parseInt(req.params.id);
+  const d = getDb();
+  const a = d.prepare('SELECT * FROM assignments WHERE id = ?').get(id);
+  if (!a) return res.status(404).json({ code: 1003, message: 'assignment not found' });
+  d.prepare('DELETE FROM submissions WHERE assignment_id = ?').run(id);
+  d.prepare('DELETE FROM assignments WHERE id = ?').run(id);
+  res.json({ code: 0, message: 'ok' });
+});
+
 app.use((req, res) => {
   if (req.method === 'GET' && !req.path.startsWith('/api/')) {
     res.sendFile(path.join(FRONTEND_DIR, 'index.html'));
@@ -295,6 +310,10 @@ console.log("数据库路径: " + DB_PATH);
 console.log("API Key: " + (MIMO_API_KEY ? "已配置" : "未配置（请设置MIMO_API_KEY 环境变量）"));
 console.log('访问地址: http://0.0.0.0:' + PORT);
 console.log('='.repeat(50));
+
+app.listen(PORT, '0.0.0.0', function() {
+  console.log('Server running on http://0.0.0.0:' + PORT);
+});
 
 module.exports = app;
 

@@ -128,9 +128,14 @@ function logout() {
     if (state.currentAssignment && state.questions.length > 0) {
         var hasAnswers = Object.keys(state.answers).length > 0;
         if (hasAnswers) {
-            if (!confirm('你正在答题，确定要退出吗？未提交的答案将保存为草稿。')) return;
+            showModal('确认退出', '你正在答题，确定要退出吗？<br>未提交的答案将保存为草稿。', function() { closeModal(); doLogout(); });
+            return;
         }
     }
+    doLogout();
+}
+
+function doLogout() {
     state.currentRole = null;
     state.currentUser = null;
     state.currentClass = null;
@@ -149,6 +154,9 @@ function showTeacherSection(section) {
     document.querySelectorAll('#teacher-page .nav-link').forEach(function(l) { l.classList.remove('active'); });
     document.getElementById(section + '-section').classList.add('active');
     var navMap = { classes: '班级', assignments: '作业', homework: '作业', 'class-detail': '班级' };
+    if (section === 'assignments' && state.currentClass) {
+        loadAssignments(state.currentClass.id);
+    }
     document.querySelectorAll('#teacher-page .nav-link').forEach(function(l) {
         if (l.textContent.trim() === navMap[section]) l.classList.add('active');
     });
@@ -277,7 +285,7 @@ function renderAssignments() {
             '<div class="list-item-title">' + a.title + '</div>' +
             '<div class="list-item-meta">' +
                 '<span>' + a.created_at + '</span>' +
-                '<button class="btn btn-small btn-secondary" onclick="viewAssignmentResults(' + a.id + ')">查看提交</button>' +
+                '<button class="btn btn-small btn-secondary" onclick="viewAssignmentDetail(' + a.id + ')">查看提交</button>' +
             '</div></div>';
     }).join('');
 }
@@ -318,7 +326,7 @@ function showCreateAssignment() {
 function switchInputMode(mode) {
     state.inputMode = mode;
     document.querySelectorAll('.toggle-item').forEach(function(t) { t.classList.remove('active'); });
-    event.target.classList.add('active');
+    document.querySelector('.toggle-item[data-mode="' + mode + '"]').classList.add('active');
     document.getElementById('text-input').style.display = mode === 'text' ? '' : 'none';
     document.getElementById('photo-input').style.display = mode === 'photo' ? '' : 'none';
 }
@@ -367,7 +375,7 @@ async function doGeneratePreview(body, btn) {
     btn.disabled = false;
     btn.textContent = '生成预览';
     if (res.code === 0) {
-        state.generatedQuestions = res.data;
+        state.generatedQuestions = Array.isArray(res.data) ? res.data : (res.data.questions || []);
         renderPreview();
     } else {
         showToast(res.message || '生成失败，可能是网络波动，再试一次？');
@@ -376,7 +384,8 @@ async function doGeneratePreview(body, btn) {
 
 function renderPreview() {
     var qs = state.generatedQuestions;
-    if (!qs || qs.length === 0) return;
+    if (!Array.isArray(qs)) { showToast('生成的题目数据异常，请重试'); return; }
+    if (qs.length === 0) return;
     document.getElementById('preview-area').style.display = '';
     document.getElementById('preview-count').textContent = qs.length;
     var container = document.getElementById('preview-questions');
@@ -399,25 +408,29 @@ function renderPreview() {
 
 async function confirmCreateAssignment() {
     if (!state.generatedQuestions) { showToast('请先生成题目'); return; }
-    if (!confirm('这是最终版本吗？确认后将立即发布给所选班级。')) return;
     var title = document.getElementById('assignment-title-input').value.trim();
     var classSelect = document.getElementById('class-select');
     var classId = parseInt(classSelect ? classSelect.value : (state.classes[0] ? state.classes[0].id : 0));
     if (!classId) { showToast('请选择班级'); return; }
 
-    showLoading('保存中...');
-    var res = await api('/assignments', { method: 'POST', body: JSON.stringify({
-        class_id: classId, title: title, questions: state.generatedQuestions
-    })});
-    hideLoading();
-    if (res.code === 0) {
-        showToast('创建成功');
-        state.generatedQuestions = null;
-        showTeacherSection('assignments');
-        loadAssignments(classId);
-    } else {
-        showToast(res.message || '保存失败');
-    }
+    var clsName = (state.classes.find(function(c) { return c.id === classId; }) || {name: ''}).name;
+    var msg = '<strong>作业标题：</strong>' + title + '<br><strong>班级：</strong>' + clsName + '<br><strong>题目数量：</strong>' + state.generatedQuestions.length + ' 题<br><br>确认后立即发布。';
+    showModal('确认发布', msg, async function() {
+        closeModal();
+        showLoading('保存中...');
+        var res = await api('/assignments', { method: 'POST', body: JSON.stringify({
+            class_id: classId, title: title, questions: state.generatedQuestions
+        })});
+        hideLoading();
+        if (res.code === 0) {
+            showToast('创建成功');
+            state.generatedQuestions = null;
+            showTeacherSection('assignments');
+            loadAssignments(classId);
+        } else {
+            showToast(res.message || '保存失败');
+        }
+    });
 }
 
 // ============ 学生端 - 作业 ============
@@ -440,6 +453,23 @@ async function loadStudentAssignments() {
     }
 }
 
+
+
+function confirmDeleteAssignment(assignmentId) {
+    var asgn = state.assignments.find(function(a2) { return a2.id === assignmentId; });
+    if (!asgn) return;
+    showModal('确认删除', '确定要删除作业 "' + asgn.title + '" 吗？<br>此操作不可恢复。', async function() {
+        var res = await api('/assignments/' + assignmentId, { method: 'DELETE' });
+        closeModal();
+        if (res.code === 0) {
+            showToast('删除成功');
+            showTeacherSection('assignments');
+            if (state.currentClass) loadAssignments(state.currentClass.id);
+        } else {
+            showToast(res.message || '删除失败');
+        }
+    });
+}
 
 function confirmDeleteClass(classId) {
     var cls = state.classes.find(function(c) { return c.id === classId; });
@@ -464,12 +494,13 @@ function renderStudentAssignments(assignments) {
         return;
     }
     container.innerHTML = assignments.map(function(a) {
+        var st = a.submit_status;
         var statusMap = { pending: '待完成', submitted: '已提交', graded: '已批改' };
         var statusClass = { pending: 'pending', submitted: 'submitted', graded: 'graded' };
         var action;
-        if (a.status === 'pending') {
+        if (!st || st === 'pending') {
             action = '<button class="btn btn-small btn-primary" onclick="startAssignment(' + a.id + ')">开始做题</button>';
-        } else if (a.status === 'graded') {
+        } else if (st === 'graded') {
             action = '<button class="btn btn-small btn-secondary" onclick="viewFeedback(' + a.id + ')">查看结果</button>';
         } else {
             action = '<span style="color:#999;">已提交</span>';
@@ -477,8 +508,8 @@ function renderStudentAssignments(assignments) {
         return '<div class="list-item">' +
             '<div class="list-item-title">' + a.title + '</div>' +
             '<div class="list-item-meta">' +
-                '<span class="list-item-status status-' + (statusClass[a.status] || 'pending') + '">' +
-                    (statusMap[a.status] || a.status) + (a.score != null ? ' · ' + a.score + '分' : '') +
+                '<span class="list-item-status status-' + (statusClass[st] || 'pending') + '">' +
+                    (statusMap[st] || '待完成') + (a.score != null ? ' · ' + a.score + '分' : '') +
                 '</span>' +
                 '<span>' + action + '</span>' +
             '</div></div>';
@@ -574,7 +605,7 @@ function renderQuestion() {
         html += '</div>';
     } else {
         var val = state.answers[state.currentQuestion] || '';
-        html += '<textarea class="answer-input" placeholder="请输入你的答案..." oninput="this.style.height=\"\";this.style.height=this.scrollHeight+\"px\";saveDraft()" oninput="state.answers[' + state.currentQuestion + ']=this.value;saveDraft()">' + val + '</textarea>';
+        html += '<textarea class="answer-input" placeholder="请输入你的答案..." oninput="this.style.height='';this.style.height=this.scrollHeight+'px';state.answers[' + state.currentQuestion + ']=this.value;saveDraft()">' + val + '</textarea>';
     }
 
     container.innerHTML = html;
@@ -721,7 +752,11 @@ async function viewAssignmentDetail(assignmentId) {
                 '</div></div>';
         }).join('');
     }
-    showTeacherSection('assignment-detail');
+
+    // Delete assignment button
+    container.innerHTML += '<div style="margin-top:12px;text-align:center;padding-top:12px;border-top:1px solid #eee;"><button class="btn btn-danger btn-small" onclick="confirmDeleteAssignment(' + assignmentId + ')">删除作业</button></div>';
+
+        showTeacherSection('assignment-detail');
 }
 
 async function viewStudentSubmission(assignmentId, studentId) {
