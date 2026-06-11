@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 require("dotenv").config();
 const express = require("express");
@@ -41,8 +41,8 @@ async function initDb() {
     await q("CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id), student_id INTEGER NOT NULL REFERENCES students(id), answers TEXT, score INTEGER DEFAULT 0, feedback TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
     const existing = await q("SELECT COUNT(*)::int as cnt FROM teachers");
     if (existing.rows[0].cnt === 0) {
-      await q("INSERT INTO teachers (code, name) VALUES ('T001', '寮犺€佸笀')");
-      await q("INSERT INTO teachers (code, name) VALUES ('T002', '鏉庤€佸笀')");
+      await q("INSERT INTO teachers (code, name) VALUES ('T001', '张老师')");
+      await q("INSERT INTO teachers (code, name) VALUES ('T002', '李老师')");
       console.log("Default teachers seeded");
     }
     console.log("PostgreSQL database initialized");
@@ -101,9 +101,9 @@ function parseJSON(str) { try { return JSON.parse(str || "{}"); } catch(e) { ret
 app.post("/api/teacher/login", async (req, res) => {
   try {
     const code = req.body.code;
-    if (!code) return res.status(400).json({ code: 1001, message: "璇疯緭鍏ユ暀甯堢紪鍙? });
+    if (!code) return res.status(400).json({ code: 1001, message: "请输入教师编号" });
     const r = await q("SELECT * FROM teachers WHERE code = $1", [code]);
-    if (r.rows.length === 0) return res.json({ code: 1002, message: "鏁欏笀缂栧彿閿欒" });
+    if (r.rows.length === 0) return res.json({ code: 1002, message: "教师编号错误" });
     res.json({ code: 0, data: r.rows[0] });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
@@ -111,9 +111,9 @@ app.post("/api/teacher/login", async (req, res) => {
 app.post("/api/student/login", async (req, res) => {
   try {
     const { class_code, name } = req.body;
-    if (!class_code || !name) return res.status(400).json({ code: 1001, message: "缂哄皯鍙傛暟" });
+    if (!class_code || !name) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const cls = await q("SELECT * FROM classes WHERE code = $1", [class_code]);
-    if (cls.rows.length === 0) return res.json({ code: 1002, message: "鐝骇缂栧彿涓嶅瓨鍦? });
+    if (cls.rows.length === 0) return res.json({ code: 1002, message: "班级编号不存在" });
     const cl = cls.rows[0];
     let student = await q("SELECT * FROM students WHERE name = $1 AND class_id = $2", [name, cl.id]);
     if (student.rows.length === 0) {
@@ -127,7 +127,7 @@ app.post("/api/student/login", async (req, res) => {
 app.get("/api/classes", async (req, res) => {
   try {
     const tid = parseInt(req.query.teacher_id);
-    if (!tid) return res.status(400).json({ code: 1001, message: "缂哄皯 teacher_id 鍙傛暟" });
+    if (!tid) return res.status(400).json({ code: 1001, message: "缺少 teacher_id 参数" });
     const r = await q("SELECT * FROM classes WHERE teacher_id = $1 ORDER BY created_at DESC", [tid]);
     res.json({ code: 0, data: r.rows });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
@@ -136,7 +136,7 @@ app.get("/api/classes", async (req, res) => {
 app.post("/api/classes", async (req, res) => {
   try {
     const { teacher_id, name } = req.body;
-    if (!teacher_id || !name) return res.status(400).json({ code: 1001, message: "缂哄皯蹇呰鍙傛暟" });
+    if (!teacher_id || !name) return res.status(400).json({ code: 1001, message: "缺少必要参数" });
     const code = generateCode();
     const r = await q("INSERT INTO classes (name, code, teacher_id) VALUES ($1, $2, $3) RETURNING *", [name, code, teacher_id]);
     res.json({ code: 0, data: r.rows[0] });
@@ -147,19 +147,19 @@ app.delete("/api/classes/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const cls = await q("SELECT * FROM classes WHERE id = $1", [id]);
-    if (cls.rows.length === 0) return res.status(404).json({ code: 1003, message: "鐝骇涓嶅瓨鍦? });
+    if (cls.rows.length === 0) return res.status(404).json({ code: 1003, message: "班级不存在" });
     await q("DELETE FROM submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE class_id = $1)", [id]);
     await q("DELETE FROM assignments WHERE class_id = $1", [id]);
     await q("DELETE FROM students WHERE class_id = $1", [id]);
     await q("DELETE FROM classes WHERE id = $1", [id]);
-    res.json({ code: 0, message: "鍒犻櫎鎴愬姛" });
+    res.json({ code: 0, message: "删除成功" });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
 app.post("/api/assignments", async (req, res) => {
   try {
     const { class_id, title, questions } = req.body;
-    if (!class_id || !title || !questions) return res.status(400).json({ code: 1001, message: "缂哄皯蹇呰鍙傛暟" });
+    if (!class_id || !title || !questions) return res.status(400).json({ code: 1001, message: "缺少必要参数" });
     const r = await q("INSERT INTO assignments (class_id, title, questions) VALUES ($1, $2, $3) RETURNING *", [class_id, title, JSON.stringify(questions)]);
     res.json({ code: 0, data: r.rows[0] });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
@@ -172,7 +172,7 @@ app.get("/api/assignments", async (req, res) => {
       const r = await q("SELECT * FROM assignments WHERE class_id = $1 ORDER BY created_at DESC", [class_id]);
       return res.json({ code: 0, data: r.rows });
     }
-    res.status(400).json({ code: 1001, message: "缂哄皯 class_id" });
+    res.status(400).json({ code: 1001, message: "缺少 class_id" });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
@@ -180,7 +180,7 @@ app.get("/api/assignments/:id", async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const r = await q("SELECT * FROM assignments WHERE id = $1", [id]);
-    if (r.rows.length === 0) return res.status(404).json({ code: 1003, message: "浣滀笟涓嶅瓨鍦? });
+    if (r.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存在" });
     const a = r.rows[0];
     a.questions = parseJSON(a.questions);
     res.json({ code: 0, data: a });
@@ -203,10 +203,10 @@ app.post("/api/assignments/generate", async (req, res) => {
     const { prompt, num_questions, content } = req.body;
     const count = Math.min(Math.max(parseInt(num_questions) || 5, 1), 20);
     const courseContent = content || "";
-    const sysP = "浣犳槸涓€浣嶈嫳璇暀甯堬紝璇锋牴鎹互涓嬭姹傜敓鎴愯嫳璇粌涔犻銆傞鐩繀椤讳互涓嬫牸寮忕殑JSON鏁扮粍杈撳嚭锛屼笉瑕佸寘鍚叾浠栧唴瀹癸細[{\"question\": \"...\", \"type\": \"choice|fill|translation\", \"options\": [\"A. ...\", \"B. ...\", \"C. ...\", \"D. ...\"], \"answer\": \"...\"}] 濡傛灉鏄痜ill绫诲瀷锛屼笉闇€瑕乷ptions瀛楁銆傚鏋滄槸translation锛屼篃涓嶉渶瑕乷ptions銆傛瘡閬撻鐩殑answer瀛楁蹇呴』鍖呭惈姝ｇ‘绛旀銆傝纭繚杈撳嚭涓烘湁鏁堢殑JSON鏁扮粍銆?;
-    let userC = "璇风敓鎴? + count + "閬撹嫳璇粌涔犻锛屽寘鎷€夋嫨棰樸€佸～绌洪鍜岀炕璇戦銆?;
-    if (courseContent) userC += "璇剧▼鍐呭锛? + courseContent;
-    if (prompt) userC += "鐗瑰埆瑕佹眰锛? + prompt;
+    const sysP = "你是一位英语教师，请根据以下要求生成英语练习题。题目必须以下格式的JSON数组输出，不要包含其他内容：[{\"question\": \"...\", \"type\": \"choice|fill|translation\", \"options\": [\"A. ...\", \"B. ...\", \"C. ...\", \"D. ...\"], \"answer\": \"...\"}] 如果是fill类型，不需要options字段。如果是translation，也不需要options。每道题目的answer字段必须包含正确答案。请确保输出为有效的JSON数组。";
+    let userC = "请生成" + count + "道英语练习题，包括选择题、填空题和翻译题。";
+    if (courseContent) userC += "课程内容：" + courseContent;
+    if (prompt) userC += "特别要求：" + prompt;
     const result = await callMimoApi(sysP, userC);
     if (result.error) return res.json({ code: 0, data: { questions: [], rawContent: result.error, count: 0 } });
     let questions = [];
@@ -229,14 +229,14 @@ app.post("/api/assignments/:id/submit", async (req, res) => {
   try {
     const aid = parseInt(req.params.id);
     const { student_id, answers } = req.body;
-    if (!student_id || !answers) return res.status(400).json({ code: 1001, message: "缂哄皯鍙傛暟" });
+    if (!student_id || !answers) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const ex = await q("SELECT id FROM submissions WHERE assignment_id = $1 AND student_id = $2", [aid, student_id]);
     if (ex.rows.length > 0) {
       await q("UPDATE submissions SET answers = $1, status = 'submitted', score = 0, feedback = NULL WHERE assignment_id = $2 AND student_id = $3", [JSON.stringify(answers), aid, student_id]);
     } else {
       await q("INSERT INTO submissions (assignment_id, student_id, answers, status) VALUES ($1, $2, $3, 'submitted')", [aid, student_id, JSON.stringify(answers)]);
     }
-    res.json({ code: 0, message: "鎻愪氦鎴愬姛" });
+    res.json({ code: 0, message: "提交成功" });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
@@ -244,15 +244,15 @@ app.post("/api/assignments/:id/grade-auto", async (req, res) => {
   try {
     const aid = parseInt(req.params.id);
     const { student_id, answers } = req.body;
-    if (!student_id || !answers) return res.status(400).json({ code: 1001, message: "缂哄皯鍙傛暟" });
+    if (!student_id || !answers) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const asgnR = await q("SELECT * FROM assignments WHERE id = $1", [aid]);
-    if (asgnR.rows.length === 0) return res.status(404).json({ code: 1003, message: "浣滀笟涓嶅瓨鍦? });
+    if (asgnR.rows.length === 0) return res.status(404).json({ code: 1003, message: "作业不存在" });
     const asgn = asgnR.rows[0];
     const questions = parseJSON(asgn.questions);
-    const sp = "浣犳槸涓€浣嶈嫳璇暀甯堬紝璇峰瀛︾敓鐨勭瓟妗堣繘琛屾壒鏀广€備互涓嬫牸寮忚繑鍥濲SON锛屼笉瑕佸寘鍚叾浠栧唴瀹癸細{\"score\": 85, \"questions\": [{\"idx\": 0, \"correct\": true, \"feedback\": \"...\", \"correctAnswer\": \"...\"}], \"comment\": \"鎬讳綋璇勪环\"}";
-    const uc = "鍘熼锛? + JSON.stringify(questions) + "\n瀛︾敓绛旀锛? + JSON.stringify(answers);
+    const sp = "你是一位英语教师，请对学生的答案进行批改。以下格式返回JSON，不要包含其他内容：{\"score\": 85, \"questions\": [{\"idx\": 0, \"correct\": true, \"feedback\": \"...\", \"correctAnswer\": \"...\"}], \"comment\": \"总体评价\"}";
+    const uc = "原题：" + JSON.stringify(questions) + "\n学生答案：" + JSON.stringify(answers);
     const result = await callMimoApi(sp, uc);
-    if (result.error) return res.json({ code: 0, data: { score: 0, questions: [], comment: "鎵规敼澶辫触锛? + result.error } });
+    if (result.error) return res.json({ code: 0, data: { score: 0, questions: [], comment: "批改失败：" + result.error } });
     let fb = { score: 0, questions: [], comment: "" };
     try {
       let raw = result.content;
@@ -260,7 +260,7 @@ app.post("/api/assignments/:id/grade-auto", async (req, res) => {
       if (jsonMatch) raw = jsonMatch[0];
       fb = JSON.parse(raw);
     } catch (e) {
-      fb = { score: 0, questions: [], comment: "瑙ｆ瀽澶辫触锛? + result.content };
+      fb = { score: 0, questions: [], comment: "解析失败：" + result.content };
     }
     const ex = await q("SELECT id FROM submissions WHERE assignment_id = $1 AND student_id = $2", [aid, student_id]);
     if (ex.rows.length > 0) {
@@ -290,7 +290,7 @@ app.get("/api/submissions", async (req, res) => {
       const r = await q("SELECT s.*, a.title as assignment_title FROM submissions s JOIN assignments a ON a.id = s.assignment_id WHERE s.student_id = $1 ORDER BY s.created_at DESC", [sid]);
       return res.json({ code: 0, data: r.rows.map(function(s) { return { id: s.id, assignment_title: s.assignment_title, assignment_id: s.assignment_id, score: s.score, status: s.status, created_at: s.created_at }; }) });
     }
-    res.status(400).json({ code: 1001, message: "鍙傛暟涓嶈冻" });
+    res.status(400).json({ code: 1001, message: "参数不足" });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
@@ -298,23 +298,25 @@ app.post("/api/assignments/:id/grade", async (req, res) => {
   try {
     const aid = parseInt(req.params.id);
     const { student_id, score, feedback, comment } = req.body;
-    if (!student_id || score === undefined) return res.status(400).json({ code: 1001, message: "缂哄皯鍙傛暟" });
+    if (!student_id || score === undefined) return res.status(400).json({ code: 1001, message: "缺少参数" });
     const fb = { score: score, questions: feedback || [], comment: comment || "" };
     const ex = await q("SELECT id FROM submissions WHERE assignment_id = $1 AND student_id = $2", [aid, student_id]);
     if (ex.rows.length > 0) {
       await q("UPDATE submissions SET score = $1, feedback = $2, status = 'graded' WHERE id = $3", [score, JSON.stringify(fb), ex.rows[0].id]);
     } else {
-      return res.status(404).json({ code: 1003, message: "鎻愪氦璁板綍涓嶅瓨鍦? });
+      return res.status(404).json({ code: 1003, message: "提交记录不存在" });
     }
     res.json({ code: 0, data: fb });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
+
+
 app.get("/api/student/assignments", async (req, res) => {
   try {
     const student_id = parseInt(req.query.student_id);
     const class_id = parseInt(req.query.class_id);
-    if (!student_id || !class_id) return res.status(400).json({ code: 1001, message: "缺少参数" });
+    if (!student_id || !class_id) return res.status(400).json({ code: 1001, message: "\u7f3a\u5c11\u53c2\u6570" });
     const assignments = await q("SELECT * FROM assignments WHERE class_id = $1 ORDER BY created_at DESC", [class_id]);
     const subs = await q("SELECT assignment_id, status, score FROM submissions WHERE student_id = $1", [student_id]);
     const subMap = {};
@@ -332,17 +334,18 @@ app.get("/api/student/assignments", async (req, res) => {
     res.json({ code: 0, data: data });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
+
 app.get("/api/students", async (req, res) => {
   try {
     const class_id = req.query.class_id ? parseInt(req.query.class_id) : null;
-    if (!class_id) return res.status(400).json({ code: 1001, message: "缂哄皯 class_id" });
+    if (!class_id) return res.status(400).json({ code: 1001, message: "缺少 class_id" });
     const r = await q("SELECT * FROM students WHERE class_id = $1 ORDER BY created_at ASC", [class_id]);
     res.json({ code: 0, data: r.rows });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
 });
 
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", message: "鏈嶅姟杩愯姝ｅ父" });
+  res.json({ status: "ok", message: "服务运行正常" });
 });
 
 app.use((req, res) => {
@@ -355,11 +358,11 @@ app.use((req, res) => {
 
 initDb().then(() => {
   console.log("=".repeat(50));
-  console.log("ZOE瀛︿範鏅鸿兘浣?- 鏈嶅姟鍚姩");
+  console.log("ZOE学习智能体 - 服务启动");
   console.log("=".repeat(50));
   console.log("PostgreSQL: OK");
   console.log("API Key: OK");
-  console.log("璁块棶鍦板潃: http://0.0.0.0:" + PORT);
+  console.log("访问地址: http://0.0.0.0:" + PORT);
   console.log("=".repeat(50));
   app.listen(PORT, "0.0.0.0", function () {
     console.log("Server running on http://0.0.0.0:" + PORT);
