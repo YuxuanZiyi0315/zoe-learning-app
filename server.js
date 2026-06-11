@@ -148,12 +148,12 @@ app.get('/api/assignments/:id', (req, res) => {
 
 app.post('/api/assignments/generate', async (req, res) => {
   const { prompt, content, num_questions, question_type, count, grade, teacher_prompt } = req.body;
-  const actualPrompt = prompt || content || '';
+  const actualContent = content || prompt || '';
   const actualCount = count || num_questions || 5;
-  if (!actualPrompt) return res.status(400).json({ code: 1001, message: '请输入题目提示或课堂内容' });
+  if (!actualContent && !teacher_prompt) return res.status(400).json({ code: 1001, message: '请输入课堂内容或教师提示词' });
   const tn = { choice: "选择题", fill: "填空题", translation: "翻译题", mixed: "混合题型" };
   const sp = "你是名小学英语出题专家，请根据要求生成英语题目。请仅返回JSON数组，不要添加任何其他内容。每道题包含：id(序号), type(choice/fill/translation), question(题目内容), options(选择题的选项，可选), answer(正确答案), explanation(解释说明)";
-  const uc = "请生成" + actualCount + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + actualPrompt + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
+  const uc = "请生成" + actualCount + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + actualContent + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
   const result = await callMimoApi(sp, uc);
   if (result.error) return res.status(500).json({ code: 2001, message: '生成失败：' + result.error });
   try {
