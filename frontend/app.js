@@ -151,6 +151,7 @@ function doLogout() {
 // ============ 教师端 - 班级 ============
 
 function showTeacherSection(section) {
+    document.querySelectorAll('.teacher-only').forEach(function(el) { el.style.display = ''; });
     document.querySelectorAll('#teacher-page .section').forEach(function(s) { s.classList.remove('active'); });
     document.querySelectorAll('#teacher-page .nav-link').forEach(function(l) { l.classList.remove('active'); });
     document.getElementById(section + '-section').classList.add('active');
@@ -549,6 +550,7 @@ async function confirmCreateAssignment() {
 // ============ 学生端 - 作业 ============
 
 function showStudentSection(section) {
+    document.querySelectorAll('.teacher-only').forEach(function(el) { el.style.display = 'none'; });
     document.querySelectorAll('#student-page .section').forEach(function(s) { s.classList.remove('active'); });
     document.querySelectorAll('#student-page .nav-link').forEach(function(l) { l.classList.remove('active'); });
     document.getElementById(section + '-section').classList.add('active');
