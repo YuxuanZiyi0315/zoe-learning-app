@@ -36,7 +36,7 @@ function closeModal() {
 
 function showModal(title, message, onConfirm) {
     document.getElementById('modal-title').textContent = title;
-    document.getElementById('modal-message').textContent = message;
+    document.getElementById('modal-message').innerHTML = message;
     document.getElementById('modal-confirm').onclick = onConfirm || function() { closeModal(); };
     document.getElementById('modal').classList.add('active');
 }
