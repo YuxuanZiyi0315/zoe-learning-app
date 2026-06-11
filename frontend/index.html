@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>ZOE的学习智能体</title>
+    <link rel="stylesheet" href="styles.css?v=2026061023">
+</head>
+<body>
+    <div id="app">
+        <!-- 加载动画遮罩 -->
+        <div id="loading-overlay" class="loading-overlay">
+            <div class="loading-spinner"></div>
+            <div class="loading-text" id="loading-text">老师正在生成题目</div>
+            <div class="loading-hint">请耐心等待，不要关闭页面</div>
+        </div>
+        <!-- 登录页面 -->
+        <div id="login-page" class="page active">
+            <div class="login-page">
+                <div class="login-box">
+                    <h1 class="login-title">ZOE的学习智能体</h1>
+                    <div class="login-tabs">
+                        <div class="login-tab active" onclick="switchLoginTab('student')">学生登录</div>
+                        <div class="login-tab" onclick="switchLoginTab('teacher')">教师登录</div>
+                    </div>
+
+                    <!-- 学生登录 -->
+                    <div id="student-login" class="login-form active">
+                        <div class="input-group">
+                            <label class="input-label">姓名</label>
+                            <input type="text" id="student-name" class="input-field" placeholder="请输入姓名">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">班级编号</label>
+                            <input type="text" id="student-class" class="input-field" placeholder="请输入班级编号">
+                        </div>
+                        <button class="btn btn-primary btn-block btn-large" onclick="studentLogin()">加入班级并进入</button>
+                        <p style="text-align:center;color:rgba(255,255,255,0.6);font-size:13px;margin-top:10px;">首次使用会自动注册</p>
+                    </div>
+
+                    <!-- 教师登录 -->
+                    <div id="teacher-login" class="login-form">
+                        <div class="input-group">
+                            <label class="input-label">教师编号</label>
+                            <input type="text" id="teacher-code" class="input-field" placeholder="请输入教师编号">
+                        </div>
+                        <button class="btn btn-primary btn-block btn-large" onclick="teacherLogin()">进入系统</button>
+                    </div>
+                </div>
+            </div>
+        </div><div id="teacher-page" class="page">
+            <nav class="nav-bar">
+                <div class="nav-title">教师端</div>
+                <div class="nav-links">
+                    <a href="#" class="nav-link active" onclick="showTeacherSection('classes')">班级</a>
+                    <a href="#" class="nav-link" onclick="showTeacherSection('assignments')">作业</a>
+                </div>
+                <button class="btn btn-small btn-secondary" onclick="logout()">退出</button>
+            </nav>
+
+            <main class="main-content">
+                <!-- 班级管理 -->
+                <section id="classes-section" class="section active">
+                    <div class="section-header">
+                        <h2 class="section-title">我的班级</h2>
+                        <button class="btn btn-primary btn-small" onclick="showCreateClass()">+ 创建班级</button>
+                    </div>
+                    <div class="list-container" id="classes-list"></div>
+                </section>
+
+                <!-- 作业管理 -->
+                <section id="assignments-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">作业管理</h2>
+                        <button class="btn btn-primary btn-small" onclick="showCreateAssignment()">+ 创建作业</button>
+                    </div>
+                    <div class="list-container" id="assignments-list"></div>
+                </section>
+
+                <!-- 创建作业（生成+预览+确认） -->
+                <section id="create-assignment-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">创建作业</h2>
+                        <button class="btn btn-small btn-secondary" onclick="showTeacherSection('assignments')">返回</button>
+                    </div>
+                    <div class="card">
+                        <div class="input-group">
+                            <label class="input-label">作业标题</label>
+                            <input type="text" id="assignment-title-input" class="input-field" placeholder="例：Unit 3 复习题">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">输入方式</label>
+                            <div class="toggle-group">
+                                <div class="toggle-item active" onclick="switchInputMode('text')">文字输入</div>
+                                <div class="toggle-item" onclick="switchInputMode('photo')">拍照上传</div>
+                            </div>
+                        </div>
+                        <div id="text-input" class="input-group">
+                            <label class="input-label">课堂内容</label>
+                            <textarea id="class-content" class="input-field" placeholder="输入课堂内容（单词、语法、课文），老师会自动生成题目..."></textarea>
+                        </div>
+                        <div id="photo-input" class="input-group" style="display: none;">
+                            <label class="input-label">拍照上传</label>
+                            <div class="upload-area" onclick="document.getElementById('photo-upload').click()">
+                                <span>📸 点击拍照或上传图片</span>
+                                <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+                            </div>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">给老师的提示词（选填）</label>
+                            <textarea id="teacher-prompt" class="input-field" placeholder="例如：多出几道填空题、侧重时态语法、难度适合初学者..."></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">生成题数</label>
+                            <input type="number" id="question-count" class="input-field" value="5" min="1" max="20">
+                        </div>
+                        <button class="btn btn-primary btn-block" id="generate-btn" onclick="generatePreview()">生成题目预览</button>
+                    </div>
+                    
+                                        <!-- 预览区域 -->
+                    <div id="preview-area" class="card" style="display: none; margin-top: 16px;">
+                        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #f0f0f0;">
+                            <span style="font-size:16px;font-weight:600;color:#333;">预览</span>
+                            <span style="background:#e6f7ff;color:#1890FF;padding:2px 10px;border-radius:10px;font-size:12px;">共 <span id="preview-count">0</span> 题</span>
+                        </div>
+                        <div id="preview-questions" style="max-height: 400px; overflow-y: auto;"></div>
+                    </div>                </section>
+                            <!-- 班级详情（含作业列表） -->
+                <section id="class-detail-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title" id="class-detail-title">班级详情</h2>
+                        <button class="btn btn-small btn-secondary" onclick="showTeacherSection('classes')">返回</button>
+                    </div>
+                    <div class="card">
+                        <div id="class-detail-info" style="padding:0;"></div>
+                        <h3 style="margin:16px 0 8px 0;color:#333;font-size:16px;">📝 班级作业</h3>
+                        <div id="class-detail-assignments" style="padding:0;"></div>
+                    </div>
+                </section>
+
+                <!-- 作业提交详情 -->
+                <section id="assignment-detail-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title" id="assignment-detail-title">作业详情</h2>
+                        <button class="btn btn-small btn-secondary" onclick="backToClassDetail()">返回班级</button>
+                    </div>
+                    <div class="card">
+                        <div id="assignment-detail-content" style="padding:0;"></div>
+                    </div>
+                </section>
+
+                <!-- 学生作业详情 -->
+                <section id="student-submission-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title" id="student-submission-title">学生作业</h2>
+                        <button class="btn btn-small btn-secondary" onclick="goBackFromSubmission()">返回</button>
+                    </div>
+                    <div class="card">
+                        <div id="student-submission-content"></div>
+                    </div>
+                </section></main>
+        </div>
+
+        <!-- 学生端 -->
+        <div id="student-page" class="page">
+            <nav class="nav-bar">
+                <div class="nav-title">学生端</div>
+                <div class="nav-links">
+                    <a href="#" class="nav-link active" onclick="showStudentSection('assignments')">我的作业</a>
+                    <a href="#" class="nav-link" onclick="showStudentSection('history'); loadHistory();">历史记录</a>
+                </div>
+                <button class="btn btn-small btn-secondary" onclick="logout()">退出</button>
+            </nav>
+
+            <main class="main-content">
+                <!-- 作业列表 -->
+                <section id="student-assignments-section" class="section active">
+                    <div class="section-header">
+                        <h2 class="section-title">我的作业</h2>
+                    </div>
+                    <div class="list-container" id="student-assignments-list"></div>
+                </section>
+
+                <!-- 做作业 -->
+                <section id="do-assignment-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title" id="do-assignment-title">作业标题</h2>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress-fill"></div>
+                        </div>
+                        <div class="progress-text" id="progress-text">1/5</div>
+                    </div>
+                    <div class="question-container" id="question-container"></div>
+                    <div class="button-group">
+                        <button class="btn btn-secondary" id="prev-btn" onclick="prevQuestion()">上一题</button>
+                        <button class="btn btn-secondary" id="next-btn" onclick="nextQuestion()">下一题</button>
+                    </div>
+                    <div class="button-group">
+                        <button class="btn btn-primary btn-block" id="submit-btn" onclick="showSubmitConfirm()" style="display: none;">提交作业</button>
+                    </div>
+                </section>
+
+                <!-- 历史记录 -->
+                <section id="history-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">历史记录</h2>
+                    </div>
+                    <div class="list-container" id="history-list"></div>
+                </section>
+
+                <!-- 批改结果 -->
+                <section id="feedback-section" class="section">
+                    <div class="section-header">
+                        <h2 class="section-title">批改结果</h2>
+                        <div class="score-display" id="score-display">0分</div>
+                    </div>
+                    <div class="list-container" id="feedback-container"></div>
+                    <div class="button-group">
+                        <button class="btn btn-secondary btn-block" onclick="showStudentSection('assignments')">返回</button>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- 弹窗 -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h3 class="modal-title" id="modal-title">提示</h3>
+            <p class="modal-message" id="modal-message"></p>
+            <div class="modal-buttons">
+                <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="modal-confirm">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=2026061023"></script>
+</body>
+</html>
