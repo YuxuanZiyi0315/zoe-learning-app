@@ -90,7 +90,7 @@ function parseJSON(str) {
 
 app.post('/api/teacher/login', (req, res) => {
   const code = req.body.code;
-  if (!code) return res.status(400).json({ code: 1001, message: '请输入教师编�? });
+  if (!code) return res.status(400).json({ code: 1001, message: '请输入教师编号' });
   const teacher = getDb().prepare('SELECT * FROM teachers WHERE code = ?').get(code);
   if (!teacher) return res.json({ code: 1002, message: '教师编号错误' });
   res.json({ code: 0, data: teacher });
@@ -141,19 +141,19 @@ app.get('/api/assignments', (req, res) => {
 app.get('/api/assignments/:id', (req, res) => {
   const id = parseInt(req.params.id);
   const a = getDb().prepare('SELECT * FROM assignments WHERE id = ?').get(id);
-  if (!a) return res.status(404).json({ code: 1003, message: '作业不存�? });
+  if (!a) return res.status(404).json({ code: 1003, message: '作业不存在' });
   try { a.questions = JSON.parse(a.questions); } catch (e) { a.questions = []; }
   res.json({ code: 0, data: a });
 });
 
 app.post('/api/assignments/generate', async (req, res) => {
   const { prompt, question_type, count, grade, teacher_prompt } = req.body;
-  if (!prompt) return res.status(400).json({ code: 1001, message: '请输入题目提�? });
-  const tn = { choice: '选择�?, fill: '填空�?, translation: '翻译�?, mixed: '混合题型' };
-  const sp = '你是名小学英语出题专家，请根据要求生成英语题目。请仅返回JSON数组，不要添加任何其他内容。每道题包含：id(序号), type(choice/fill/translation), question(题目内容), options(选择题的选项，可�?, answer(正确答案), explanation(解释说明)';
-  const uc = '请生�? + (count || 5) + '道英语题目，题型�?' + (tn[question_type] || question_type) + '"，适合小学' + (grade || '3-4') + '年级学生。课程内容：' + prompt + (teacher_prompt ? '\n\n教师特别要求�? + teacher_prompt : '');
+  if (!prompt) return res.status(400).json({ code: 1001, message: '请输入题目提示' });
+  const tn = { choice: "选择题", fill: "填空题", translation: "翻译题", mixed: "混合题型" };
+  const sp = "你是名小学英语出题专家，请根据要求生成英语题目。请仅返回JSON数组，不要添加任何其他内容。每道题包含：id(序号), type(choice/fill/translation), question(题目内容), options(选择题的选项，可选), answer(正确答案), explanation(解释说明)";
+  const uc = "请生成" + (count || 5) + "道英语题目，题型为\"" + (tn[question_type] || question_type) + "\"，适合小学" + (grade || "3-4") + "年级学生。课程内容：" + prompt + (teacher_prompt ? "\n\n教师特别要求：" + teacher_prompt : "");
   const result = await callMimoApi(sp, uc);
-  if (result.error) return res.status(500).json({ code: 2001, message: '生成失败�? + result.error });
+  if (result.error) return res.status(500).json({ code: 2001, message: '生成失败：' + result.error });
   try {
     const m = result.content.match(/\[.*\]/s);
     const questions = m ? JSON.parse(m[0]) : [];
@@ -185,15 +185,15 @@ app.post('/api/assignments/:id/submit', async (req, res) => {
   if (!student_id || !answers) return res.status(400).json({ code: 1001, message: '缺少参数' });
   const d = getDb();
   const a = d.prepare('SELECT * FROM assignments WHERE id = ?').get(aid);
-  if (!a) return res.status(404).json({ code: 1003, message: '作业不存�? });
+  if (!a) return res.status(404).json({ code: 1003, message: '作业不存在' });
   let questions;
   try { questions = JSON.parse(a.questions); } catch(e) { questions = []; }
   let qa = '';
   for (const q of questions) {
-    qa += '题目�? + q.question + '\n正确答案�? + q.answer + '\n学生答案�? + (answers[q.id] || '(未作�?') + '\n\n';
+    qa += "题目：" + q.question + "\n正确答案：" + q.answer + "\n学生答案：" + (answers[q.id] || "(未作答)") + "\n\n";
   }
-  const sp = '你是名温暖的英语老师，批改作业时永远保持鼓励的态度。即使学生答错也要肯定他们的努力，用温和的方式引导他们找到正确答案。请直接返回JSON对象，不要添加任何其他内容�?;
-  const uc = '请批改以下作业，保持鼓励的语气。\n\n题目和正确答案：\n' + qa + '\n请批改每道题，并给出：\n1. 每道题的对错\n2. 对答对的题给予肯定\n3. 对答错的题温和指出正确答案\n4. 总体评论要积极正面\n\n返回JSON格式：{"score": 分数, "questions": [{"id": 0, "correct": true/false, "feedback": "评语"}], "comment": "总体评论"}';
+  const sp = "你是名温暖的英语老师，批改作业时永远保持鼓励的态度。即使学生答错也要肯定他们的努力，用温和的方式引导他们找到正确答案。请直接返回JSON对象，不要添加任何其他内容。";
+  const uc = "请批改以下作业，保持鼓励的语气。\n\n题目和正确答案：\n" + qa + "\n请批改每道题，并给出：\n1. 每道题的对错\n2. 对答对的题给予肯定\n3. 对答错的题温和指出正确答案\n4. 总体评论要积极正面\n\n返回JSON格式：{\"score\": 分数, \"questions\": [{\"id\": 0, \"correct\": true/false, \"feedback\": \"评语\"}], \"comment\": \"总体评论\"}";
   const result = await callMimoApi(sp, uc);
   if (result.error) {
     // Save draft even if AI grading fails
@@ -203,7 +203,7 @@ app.post('/api/assignments/:id/submit', async (req, res) => {
     } else {
       d.prepare("INSERT INTO submissions (assignment_id, student_id, answers, status) VALUES (?, ?, ?, 'pending')").run(aid, student_id, JSON.stringify(answers));
     }
-    return res.status(500).json({ code: 2001, message: '批改失败�? + result.error, data: { saved: true } });
+    return res.status(500).json({ code: 2001, message: '批改失败：' + result.error, data: { saved: true } });
   }
   let fb;
   try {
@@ -255,7 +255,7 @@ app.post('/api/assignments/:id/grade', (req, res) => {
   if (ex) {
     d.prepare("UPDATE submissions SET score = ?, feedback = ?, status = 'graded' WHERE id = ?").run(score, JSON.stringify(fb), ex.id);
   } else {
-    return res.status(404).json({ code: 1003, message: '提交记录不存�? });
+    return res.status(404).json({ code: 1003, message: '提交记录不存在' });
   }
   res.json({ code: 0, data: fb });
 });
@@ -276,8 +276,8 @@ initDb();
 console.log('='.repeat(50));
 console.log('ZOE的学习智能体 - 服务启动');
 console.log('='.repeat(50));
-console.log('数据库路�? ' + DB_PATH);
-console.log('API Key: ' + (MIMO_API_KEY ? '已配�? : '未配置（请设�?MIMO_API_KEY 环境变量�?));
+console.log("数据库路径: " + DB_PATH);
+console.log("API Key: " + (MIMO_API_KEY ? "已配置" : "未配置（请设置MIMO_API_KEY 环境变量）"));
 console.log('访问地址: http://0.0.0.0:' + PORT);
 console.log('='.repeat(50));
 
