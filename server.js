@@ -10,8 +10,8 @@ const { Pool } = require("pg");
 const app = express();
 const PORT = parseInt(process.env.PORT || "18890", 10);
 const FRONTEND_DIR = process.env.FRONTEND_DIR || path.join(__dirname, 'frontend');
-const MIMO_API_KEY = process.env.MIMO_API_KEY || 'sk-cjnwxwbzk29ssnr1wlsiuy0v1ipn4bbabexrct1kwl8m054g';
-const MIMO_API_URL = process.env.MIMO_API_URL || 'https://api.xiaomimimo.com/v1/chat/completions';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || 'sk-cjnwxwbzk29ssnr1wlsiuy0v1ipn4bbabexrct1kwl8m054g';
+const DEEPSEEK_API_URL = process.env.DEEPSEEK_API_URL || 'https://api.deepseek.com/v1/chat/completions';
 
 app.use(cors());
 app.use(morgan('dev'));
@@ -37,7 +37,7 @@ async function initDb() {
     await q("CREATE TABLE IF NOT EXISTS teachers (id SERIAL PRIMARY KEY, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
     await q("CREATE TABLE IF NOT EXISTS classes (id SERIAL PRIMARY KEY, name TEXT NOT NULL, code TEXT UNIQUE NOT NULL, teacher_id INTEGER NOT NULL REFERENCES teachers(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
     await q("CREATE TABLE IF NOT EXISTS students (id SERIAL PRIMARY KEY, name TEXT NOT NULL, class_id INTEGER NOT NULL REFERENCES classes(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-    await q("CREATE TABLE IF NOT EXISTS assignments (id SERIAL PRIMARY KEY, class_id INTEGER NOT NULL REFERENCES classes(id), title TEXT NOT NULL, questions TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+    await q("CREATE TABLE IF NOT EXISTS assignments (id SERIAL PRIMARY KEY, class_id INTEGER NOT NULL REFERENCES classes(id), title TEXT NOT NULL, questions TEXT NOT NULL, ai_model TEXT DEFAULT '', ai_api_key TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
     await q("CREATE TABLE IF NOT EXISTS submissions (id SERIAL PRIMARY KEY, assignment_id INTEGER NOT NULL REFERENCES assignments(id), student_id INTEGER NOT NULL REFERENCES students(id), answers TEXT, score INTEGER DEFAULT 0, feedback TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
     const existing = await q("SELECT COUNT(*)::int as cnt FROM teachers");
     if (existing.rows[0].cnt === 0) {
@@ -52,17 +52,17 @@ async function initDb() {
   }
 }
 
-async function callMimoApi(systemPrompt, userContent, timeoutMs) {
+async function callAiApi(systemPrompt, userContent, timeoutMs) {
   timeoutMs = timeoutMs || 60000;
-  if (!MIMO_API_KEY) return { error: 'Error: MIMO_API_KEY not set' };
+  if (!DEEPSEEK_API_KEY) return { error: 'Error: DEEPSEEK_API_KEY not set' };
   try {
     const mod = await import('node-fetch');
     const fetch = mod.default;
-    const resp = await fetch(MIMO_API_URL, {
+    const resp = await fetch(DEEPSEEK_API_URL, {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + MIMO_API_KEY, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'Bearer ' + DEEPSEEK_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'mimo-v2.5-pro',
+        model: 'deepseek-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent }
@@ -75,11 +75,11 @@ async function callMimoApi(systemPrompt, userContent, timeoutMs) {
     if (resp.ok) {
       const data = await resp.json();
       const content = data.choices[0].message.content;
-      console.log('MiMo API Success');
+      console.log('AI API Success');
       return { content: content };
     } else {
       const text = await resp.text();
-      return { error: 'MiMo API Error: status=' + resp.status + ', body=' + text.slice(0, 200) };
+      return { error: 'AI API Error: status=' + resp.status + ', body=' + text.slice(0, 200) };
     }
   } catch (e) {
     return { error: 'API call exception: ' + e.message };
@@ -207,7 +207,7 @@ app.post("/api/assignments/generate", async (req, res) => {
     let userC = "请生成" + count + "道英语练习题，包括选择题、填空题和翻译题。";
     if (courseContent) userC += "课程内容：" + courseContent;
     if (prompt) userC += "特别要求：" + prompt;
-    const result = await callMimoApi(sysP, userC);
+    const result = await callAiApi(sysP, userC);
     if (result.error) return res.json({ code: 0, data: { questions: [], rawContent: result.error, count: 0 } });
     let questions = [];
     let raw = result.content;
@@ -251,7 +251,7 @@ app.post("/api/assignments/:id/grade-auto", async (req, res) => {
     const questions = parseJSON(asgn.questions);
     const sp = "你是一位英语教师，请对学生的答案进行批改。以下格式返回JSON，不要包含其他内容：{\"score\": 85, \"questions\": [{\"idx\": 0, \"correct\": true, \"feedback\": \"...\", \"correctAnswer\": \"...\"}], \"comment\": \"总体评价\"}";
     const uc = "原题：" + JSON.stringify(questions) + "\n学生答案：" + JSON.stringify(answers);
-    const result = await callMimoApi(sp, uc);
+    const result = await callAiApi(sp, uc);
     if (result.error) return res.json({ code: 0, data: { score: 0, questions: [], comment: "批改失败：" + result.error } });
     let fb = { score: 0, questions: [], comment: "" };
     try {
@@ -333,6 +333,29 @@ app.get("/api/student/assignments", async (req, res) => {
     });
     res.json({ code: 0, data: data });
   } catch (e) { res.status(500).json({ code: 9999, message: e.message }); }
+});
+
+
+
+app.post("/api/ai/test-connection", async (req, res) => {
+  try {
+    const { api_key } = req.body;
+    if (!api_key) return res.json({ code: 1001, message: "\u7f3a\u5c11 API Key" });
+    const fetch = (await import("node-fetch")).default;
+    const response = await fetch(DEEPSEEK_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + api_key },
+      body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: "Say hello" }], max_tokens: 5 })
+    });
+    if (response.ok) {
+      res.json({ code: 0, data: { ok: true } });
+    } else {
+      const text = await response.text();
+      res.json({ code: 1002, message: "API Error: " + response.status + " " + text });
+    }
+  } catch (e) {
+    res.json({ code: 9999, message: e.message });
+  }
 });
 
 app.get("/api/students", async (req, res) => {

@@ -370,7 +370,29 @@ async function generatePreview() {
     await doGeneratePreview(body, btn);
 }
 
+
+
+async function testAIConnection() {
+    var apiKey = document.getElementById("ai-api-key-input").value.trim();
+    if (!apiKey) { document.getElementById("ai-test-result").innerHTML = '<span style="color:#666;">使用默认 Key，无需测试</span>'; return; }
+    var resultEl = document.getElementById("ai-test-result");
+    var btn = document.getElementById("test-api-btn");
+    btn.disabled = true;
+    btn.textContent = "连接中...";
+    resultEl.innerHTML = '<span style="color:#666;">正在测试...</span>';
+    var res = await api("/ai/test-connection", { method: "POST", body: JSON.stringify({ api_key: apiKey }) });
+    btn.disabled = false;
+    btn.textContent = "测试连接";
+    if (res.code === 0 && res.data && res.data.ok) {
+        resultEl.innerHTML = '<span style="color:#52c41a;">✅ 连接成功</span>';
+    } else {
+        resultEl.innerHTML = '<span style="color:#ff4d4f;">❌ 连接失败：' + (res.message || "无法连接") + '</span>';
+    }
+}
+
 async function doGeneratePreview(body, btn) {
+    var savedKey = document.getElementById('ai-api-key-input').value.trim();
+    if (savedKey) body.ai_api_key = savedKey;
     var res = await api('/assignments/generate', { method: 'POST', body: JSON.stringify(body) });
     hideLoading();
     btn.disabled = false;
@@ -493,7 +515,7 @@ function renderPreview() {
                 '<span style="background:#e6f7ff;color:#1890FF;padding:2px 10px;border-radius:4px;font-size:12px;">' + getTypeName(q.type) + '</span>' +
             '</div>' +
             '<div class="preview-item-content">' +
-                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + (q.content || q.question || '') + '</p>' + answers +
+                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + q.content + '</p>' + answers +
                 '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #d9d9d9;color:#52c41a;font-size:14px;"><strong>参考答案：</strong>' + q.answer + '</div>' +
             '</div></div>';
     }).join('');
@@ -511,8 +533,9 @@ async function confirmCreateAssignment() {
     showModal('确认发布', msg, async function() {
         closeModal();
         showLoading('保存中...');
+        var aiKey = document.getElementById('ai-api-key-input').value.trim();
         var res = await api('/assignments', { method: 'POST', body: JSON.stringify({
-            class_id: classId, title: title, questions: state.generatedQuestions
+            class_id: classId, title: title, questions: state.generatedQuestions, ai_api_key: aiKey
         })});
         hideLoading();
         if (res.code === 0) {
@@ -690,7 +713,7 @@ function renderQuestion() {
           html += '<div class="progress-dot ' + dotClass + '"></div>';
       }
       html += '</div>' +
-        '<div class="question-text">' + (q.content || q.question || '') + '</div>';
+        '<div class="question-text">' + (q.content || q.question) + '</div>';
 
     if (q.type === 'choice') {
         html += '<div class="options-list">';
