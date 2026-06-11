@@ -493,7 +493,7 @@ function renderPreview() {
                 '<span style="background:#e6f7ff;color:#1890FF;padding:2px 10px;border-radius:4px;font-size:12px;">' + getTypeName(q.type) + '</span>' +
             '</div>' +
             '<div class="preview-item-content">' +
-                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + q.content + '</p>' + answers +
+                '<p style="margin-bottom:8px;font-size:15px;line-height:1.6;">' + (q.content || q.question || '') + '</p>' + answers +
                 '<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #d9d9d9;color:#52c41a;font-size:14px;"><strong>参考答案：</strong>' + q.answer + '</div>' +
             '</div></div>';
     }).join('');
@@ -690,7 +690,7 @@ function renderQuestion() {
           html += '<div class="progress-dot ' + dotClass + '"></div>';
       }
       html += '</div>' +
-        '<div class="question-text">' + (q.content || q.question) + '</div>';
+        '<div class="question-text">' + (q.content || q.question || '') + '</div>';
 
     if (q.type === 'choice') {
         html += '<div class="options-list">';
