@@ -10,7 +10,7 @@ const Database = require('better-sqlite3');
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '18890', 10);
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.db');
+const DB_PATH = process.env.DB_PATH || path.join(process.env.RENDER_DISK_PATH || __dirname, 'data.db');
 const FRONTEND_DIR = process.env.FRONTEND_DIR || path.join(__dirname, 'frontend');
 const MIMO_API_KEY = 'sk-cjnwxwbzk29ssnr1wlsiuy0v1ipn4bbabexrct1kwl8m054g';
 const MIMO_API_URL = process.env.MIMO_API_URL || 'https://api.xiaomimimo.com/v1/chat/completions';
