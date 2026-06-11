@@ -998,3 +998,7 @@ textarea.input-field {
 }
 
 }
+
+/* teacher-only elements hidden by default, shown only when teacher is active */
+.teacher-only { display: none; }
+#teacher-page.active .teacher-only { display: block; }
