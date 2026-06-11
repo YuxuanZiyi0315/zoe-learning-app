@@ -149,7 +149,7 @@ function showTeacherSection(section) {
 }
 
 async function loadClasses() {
-    document.getElementById('classes-list').innerHTML = '<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>';
+    document.getElementById('classes-list').innerHTML = '<div class="skeleton-card skeleton-block"></div><div class="skeleton-card skeleton-block"></div><div class="skeleton-card skeleton-block"></div>';
     var res = await api('/classes?teacher_id=' + state.currentUser.id);
     if (res.code === 0) {
         state.classes = res.data;
@@ -160,7 +160,7 @@ async function loadClasses() {
 function renderClasses() {
     var container = document.getElementById('classes-list');
     if (!state.classes || state.classes.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#999;"><div style="font-size:48px;margin-bottom:16px;">📎</div><div>还没有班级，点击右上角创建</div></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📎</div><div>还没有班级</div><div style="color:var(--text-light);font-size:13px;margin-top:8px;">点击右上角创建班级</div></div>';
         return;
     }
     container.innerHTML = state.classes.map(function(c) {
@@ -240,7 +240,7 @@ async function loadAssignments(classId) {
 function renderAssignments() {
     var container = document.getElementById('assignments-list');
     if (!state.assignments || state.assignments.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#999;"><div style="font-size:48px;margin-bottom:16px;">📑</div><div>还没有作业，点击右上角创建</div></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📑</div><div>还没有作业</div><div style="color:var(--text-light);font-size:13px;margin-top:8px;">点击右上角创建作业</div></div>';
         return;
     }
     container.innerHTML = state.assignments.map(function(a) {
