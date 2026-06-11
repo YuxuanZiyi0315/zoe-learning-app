@@ -62,7 +62,7 @@ async function callAiApi(systemPrompt, userContent, timeoutMs) {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + DEEPSEEK_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'deepseek-chat',
+        model: 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent }
@@ -345,7 +345,7 @@ app.post("/api/ai/test-connection", async (req, res) => {
     const response = await fetch(DEEPSEEK_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": "Bearer " + api_key },
-      body: JSON.stringify({ model: "deepseek-chat", messages: [{ role: "user", content: "Say hello" }], max_tokens: 5 })
+      body: JSON.stringify({ model: "deepseek-v4-flash", messages: [{ role: "user", content: "Say hello" }], max_tokens: 5 })
     });
     if (response.ok) {
       res.json({ code: 0, data: { ok: true } });
